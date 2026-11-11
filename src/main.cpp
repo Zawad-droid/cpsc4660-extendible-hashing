@@ -1,0 +1,58 @@
+#include <iostream>
+#include "extendible_hash.h"
+
+int main() {
+    Bucket bucket(1, 3);  // localDepth = 1, capacity = 3
+
+    int value = 0;
+
+    // Test 1: New bucket should be empty
+    std::cout << "Test 1 - Initially not full: "
+              << (!bucket.isFull() ? "PASS" : "FAIL") << '\n';
+
+    // Test 2: Insert three records
+    bool a = bucket.insert({10, 100});
+    bool b = bucket.insert({20, 200});
+    bool c = bucket.insert({30, 300});
+
+    std::cout << "Test 2 - Insert three records: "
+              << (a && b && c ? "PASS" : "FAIL") << '\n';
+
+    // Test 3: Bucket should now be full
+    std::cout << "Test 3 - Bucket is full: "
+              << (bucket.isFull() ? "PASS" : "FAIL") << '\n';
+
+    // Test 4: Fourth distinct record should be rejected
+    bool inserted = bucket.insert({40, 400});
+
+    std::cout << "Test 4 - Reject insertion when full: "
+              << (!inserted ? "PASS" : "FAIL") << '\n';
+
+    // Test 5: Find existing key
+    bool found = bucket.find(20, value);
+
+    std::cout << "Test 5 - Find existing key: "
+              << (found && value == 200 ? "PASS" : "FAIL") << '\n';
+
+    // Test 6: Update existing key even when full
+    bool updated = bucket.insert({20, 500});
+    found = bucket.find(20, value);
+
+    std::cout << "Test 6 - Update existing key: "
+              << (updated && found && value == 500 ? "PASS" : "FAIL") << '\n';
+
+    // Test 7: Find nonexistent key
+    found = bucket.find(99, value);
+
+    std::cout << "Test 7 - Missing key: "
+              << (!found ? "PASS" : "FAIL") << '\n';
+
+    // Test 8: Rejected insertion must not remove existing records
+    bool found10 = bucket.find(10, value) && value == 100;
+    bool found30 = bucket.find(30, value) && value == 300;
+
+    std::cout << "Test 8 - Existing records preserved: "
+              << (found10 && found30 ? "PASS" : "FAIL") << '\n';
+
+    return 0;
+}
