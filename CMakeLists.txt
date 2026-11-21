@@ -23,3 +23,30 @@ target_compile_options(extendible_hash PRIVATE
     -Wextra
     -Wpedantic
 )
+
+
+# Enable automated testing
+enable_testing()
+
+# Separate integration test executable
+add_executable(extendible_hash_integration_tests
+    tests/tests.cpp
+    src/extendible_hash.cpp
+)
+
+target_include_directories(
+    extendible_hash_integration_tests PRIVATE include
+)
+
+target_compile_options(
+    extendible_hash_integration_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+# Register the test with CTest
+add_test(
+    NAME extendible_hash_integration
+    COMMAND extendible_hash_integration_tests
+)
