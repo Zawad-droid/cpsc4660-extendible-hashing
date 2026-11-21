@@ -12,6 +12,7 @@ struct Record{
 
 /// A bucket with a fixed record capacity and its own local depth.
 class Bucket{
+    friend class ExtendibleHash;
 private:
     // Number of hash bits used to distinguish this bucket.
     int localDepth;
@@ -44,12 +45,17 @@ private:
     std::size_t bucketCapacity;
     std::vector<std::shared_ptr<Bucket>> directory;
     static std::uint32_t pseudokey(int key);
+    void doubleDirectory();
+    void splitBucket(std::size_t directoryIndex);
+
 public:
     ExtendibleHash(std::size_t bucketCapacity);
 
     std::size_t getDirectoryIndex(int key) const;
 
     bool find(int key, int& value) const;
+
+    bool insert(const Record& r);
 
     int getGlobalDepth() const {
         return globalDepth;

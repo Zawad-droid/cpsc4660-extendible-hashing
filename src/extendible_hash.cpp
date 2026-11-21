@@ -1,5 +1,6 @@
 #include "extendible_hash.h"
 #include <stdexcept>
+#include <utility>
 
 Bucket::Bucket(int localDepth, std::size_t capacity){
     this->localDepth = localDepth;
@@ -35,8 +36,15 @@ bool Bucket::insert(const Record& r){
 }
 
 
+
 ExtendibleHash::ExtendibleHash(std::size_t bucketCapacity)
     : globalDepth(1), bucketCapacity(bucketCapacity) {
+
+    if (bucketCapacity == 0) {
+        throw std::invalid_argument(
+            "Bucket capacity must be positive"
+        );
+    }
 
     directory.push_back(
         std::make_shared<Bucket>(globalDepth, bucketCapacity)
@@ -46,7 +54,6 @@ ExtendibleHash::ExtendibleHash(std::size_t bucketCapacity)
         std::make_shared<Bucket>(globalDepth, bucketCapacity)
     );
 }
-
 
 std::uint32_t ExtendibleHash::pseudokey(int key) {
     std::uint32_t x = static_cast<std::uint32_t>(key);
@@ -77,4 +84,87 @@ bool ExtendibleHash::find(int key, int& value) const {
     std::size_t index = getDirectoryIndex(key);
 
     return directory.at(index)->find(key, value);
+}
+
+
+void ExtendibleHash::doubleDirectory() {
+    if (globalDepth >= 32 ||
+        directory.size() > directory.max_size() / 2) {
+        throw std::overflow_error(
+            "Cannot grow directory further"
+        );
+    }
+
+    std::vector<std::shared_ptr<Bucket>> expanded;
+    expanded.reserve(directory.size() * 2);
+
+    for (const auto& bucket : directory) {
+        expanded.push_back(bucket);
+        expanded.push_back(bucket);
+    }
+
+    directory.swap(expanded);
+    ++globalDepth;
+}
+
+
+void ExtendibleHash::splitBucket(std::size_t directoryIndex) {
+    auto oldBucket = directory.at(directoryIndex);
+    int oldDepth = oldBucket->localDepth;
+
+    if (oldDepth >= 32) {
+        throw std::overflow_error(
+            "Pseudokey bits exhausted"
+        );
+    }
+
+    if (oldDepth == globalDepth) {
+        doubleDirectory();
+    }
+
+    auto newBucket = std::make_shared<Bucket>(
+        oldDepth + 1, bucketCapacity
+    );
+
+    oldBucket->localDepth = oldDepth + 1;
+
+    std::size_t shift = static_cast<std::size_t>(
+        globalDepth - (oldDepth + 1)
+    );
+
+    for (std::size_t i = 0; i < directory.size(); ++i) {
+        if (directory[i] == oldBucket &&
+            ((i >> shift) & 1U)) {
+            directory[i] = newBucket;
+        }
+    }
+
+    std::vector<Record> previous =
+        std::move(oldBucket->records);
+
+    oldBucket->records.clear();
+
+    for (const Record& record : previous) {
+        std::size_t index = getDirectoryIndex(record.key);
+
+        if (!directory.at(index)->insert(record)) {
+            throw std::logic_error(
+                "Failed to redistribute record"
+            );
+        }
+    }
+}
+
+
+bool ExtendibleHash::insert(const Record& record) {
+    while (true) {
+        std::size_t index = getDirectoryIndex(record.key);
+        auto bucket = directory.at(index);
+
+        if (bucket->insert(record)) {
+            return true;
+        }
+
+        splitBucket(index);
+    }
 }

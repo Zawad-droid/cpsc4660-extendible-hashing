@@ -1,6 +1,7 @@
 #include <iostream>
 #include "extendible_hash.h"
 #include <initializer_list>
+#include <stdexcept>
 
 int main() {
     Bucket bucket(1, 3);  // localDepth = 1, capacity = 3
@@ -134,6 +135,117 @@ int main() {
 
     std::cout << "Test 18 - Multiple missing keys: "
               << (allMissing ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 19: Insertion through the directory
+    ExtendibleHash growTable(1);
+
+    bool firstInsert = growTable.insert({0, 100});
+    bool secondInsert = growTable.insert({2, 200});
+
+    std::cout << "Test 19 - Directory insertion: "
+              << (firstInsert && secondInsert ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 20: Repeated directory doubling
+    std::cout << "Test 20 - Directory doubling: "
+              << (growTable.getGlobalDepth() == 3 &&
+                  growTable.getDirectorySize() == 8
+                      ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 21: Existing records survive splitting
+    int result = 0;
+
+    bool preserved =
+        growTable.find(0, result) && result == 100 &&
+        growTable.find(2, result) && result == 200;
+
+    std::cout << "Test 21 - Records preserved: "
+              << (preserved ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 22: Unsplit buckets share directory pointers
+    bool sharedPointers =
+        &growTable.getBucket(6) ==
+        &growTable.getBucket(7);
+
+    std::cout << "Test 22 - Shared bucket pointers: "
+              << (sharedPointers ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 23: Split without further directory doubling
+    int depthBefore = growTable.getGlobalDepth();
+
+    bool moreInserts =
+        growTable.insert({3, 300}) &&
+        growTable.insert({-3, 400});
+
+    std::cout << "Test 23 - Split without doubling: "
+              << (moreInserts &&
+                  growTable.getGlobalDepth() == depthBefore
+                      ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 24: All records remain accessible
+    bool allFound =
+        growTable.find(0, result) && result == 100 &&
+        growTable.find(2, result) && result == 200 &&
+        growTable.find(3, result) && result == 300 &&
+        growTable.find(-3, result) && result == 400;
+
+    std::cout << "Test 24 - All lookups after splits: "
+              << (allFound ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 25: Updating a key must not cause splitting
+    int depthBeforeUpdate = growTable.getGlobalDepth();
+
+    bool updatedRecord =
+        growTable.insert({0, 999}) &&
+        growTable.find(0, result) &&
+        result == 999;
+
+    std::cout << "Test 25 - Update without splitting: "
+              << (updatedRecord &&
+                  growTable.getGlobalDepth() == depthBeforeUpdate
+                      ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 26: Reject zero bucket capacity
+    bool rejectedCapacity = false;
+
+    try {
+        ExtendibleHash invalidTable(0);
+    } catch (const std::invalid_argument&) {
+        rejectedCapacity = true;
+    }
+
+    std::cout << "Test 26 - Reject zero capacity: "
+              << (rejectedCapacity ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 27: Verify many insertions and lookups
+    ExtendibleHash bulkTable(4);
+    bool bulkCorrect = true;
+
+    for (int i = 0; i < 1000; ++i) {
+        if (!bulkTable.insert({i, i * 3})) {
+            bulkCorrect = false;
+            break;
+        }
+    }
+
+    for (int i = 0; i < 1000 && bulkCorrect; ++i) {
+        int stored = 0;
+
+        if (!bulkTable.find(i, stored) || stored != i * 3) {
+            bulkCorrect = false;
+        }
+    }
+
+    std::cout << "Test 27 - Bulk insert and lookup: "
+              << (bulkCorrect ? "PASS" : "FAIL")
               << '\n';
 
     return 0;
