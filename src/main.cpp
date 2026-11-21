@@ -1,5 +1,6 @@
 #include <iostream>
 #include "extendible_hash.h"
+#include <initializer_list>
 
 int main() {
     Bucket bucket(1, 3);  // localDepth = 1, capacity = 3
@@ -75,6 +76,36 @@ int main() {
                   hashTable.getBucket(1).getLocalDepth() == 1
                       ? "PASS" : "FAIL")
               << '\n';
+
+    // Test 13: Directory indices are within bounds
+    bool validIndex = true;
+
+    for (int key : {0, 1, 3, 25, -5, 100}) {
+        if (hashTable.getDirectoryIndex(key) >=
+            hashTable.getDirectorySize()) {
+            validIndex = false;
+        }
+    }
+
+    std::cout << "Test 13 - Valid directory index: "
+              << (validIndex ? "PASS" : "FAIL") << '\n';
+
+    // Test 14: Hashing is deterministic
+    bool consistent =
+        hashTable.getDirectoryIndex(42) ==
+        hashTable.getDirectoryIndex(42);
+
+    std::cout << "Test 14 - Consistent hashing: "
+              << (consistent ? "PASS" : "FAIL") << '\n';
+
+    // Test 15: Prefix-based directory indexing
+    bool correctPrefix =
+        hashTable.getDirectoryIndex(3) == 1 &&
+        hashTable.getDirectoryIndex(25) == 0 &&
+        hashTable.getDirectoryIndex(-5) == 1;
+
+    std::cout << "Test 15 - Prefix-based indexing: "
+              << (correctPrefix ? "PASS" : "FAIL") << '\n';
 
 
     return 0;

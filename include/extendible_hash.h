@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 /// A key-value pair stored in a hash bucket.
 struct Record{
@@ -42,9 +43,11 @@ private:
     int globalDepth;
     std::size_t bucketCapacity;
     std::vector<std::shared_ptr<Bucket>> directory;
-
+    static std::uint32_t pseudokey(int key);
 public:
     ExtendibleHash(std::size_t bucketCapacity);
+
+    std::size_t getDirectoryIndex(int key) const;
 
     int getGlobalDepth() const {
         return globalDepth;
