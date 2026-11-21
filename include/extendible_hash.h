@@ -37,6 +37,11 @@ public:
         return localDepth;
     }
 
+    std::size_t getRecordCount() const {
+        return records.size();
+    }
+
+
 };
 
 class ExtendibleHash {
@@ -45,7 +50,10 @@ private:
     std::size_t bucketCapacity;
     std::vector<std::shared_ptr<Bucket>> directory;
     static std::uint32_t pseudokey(int key);
-    void doubleDirectory();
+    void doubleDirectory(
+        std::vector<std::shared_ptr<Bucket>>& expanded
+    ) const;
+
     void splitBucket(std::size_t directoryIndex);
 
 public:

@@ -87,7 +87,10 @@ bool ExtendibleHash::find(int key, int& value) const {
 }
 
 
-void ExtendibleHash::doubleDirectory() {
+
+void ExtendibleHash::doubleDirectory(
+    std::vector<std::shared_ptr<Bucket>>& expanded) const {
+
     if (globalDepth >= 32 ||
         directory.size() > directory.max_size() / 2) {
         throw std::overflow_error(
@@ -95,63 +98,119 @@ void ExtendibleHash::doubleDirectory() {
         );
     }
 
-    std::vector<std::shared_ptr<Bucket>> expanded;
     expanded.reserve(directory.size() * 2);
 
     for (const auto& bucket : directory) {
         expanded.push_back(bucket);
         expanded.push_back(bucket);
     }
-
-    directory.swap(expanded);
-    ++globalDepth;
 }
 
 
 void ExtendibleHash::splitBucket(std::size_t directoryIndex) {
-    auto oldBucket = directory.at(directoryIndex);
-    int oldDepth = oldBucket->localDepth;
+    auto original = directory.at(directoryIndex);
+    const int originalDepth = original->localDepth;
 
-    if (oldDepth >= 32) {
-        throw std::overflow_error(
-            "Pseudokey bits exhausted"
-        );
+    if (originalDepth < 1 || originalDepth > globalDepth) {
+        throw std::logic_error("Invalid local depth");
     }
 
-    if (oldDepth == globalDepth) {
-        doubleDirectory();
+    if (originalDepth == 32) {
+        throw std::overflow_error("Pseudokey bits exhausted");
     }
 
-    auto newBucket = std::make_shared<Bucket>(
-        oldDepth + 1, bucketCapacity
+    const bool requiresDoubling =
+        (originalDepth == globalDepth);
+
+    const int newGlobalDepth =
+        globalDepth + (requiresDoubling ? 1 : 0);
+
+    const int newLocalDepth = originalDepth + 1;
+
+    const std::size_t originalPrefix =
+        directoryIndex >> (globalDepth - originalDepth);
+
+    auto sibling = std::make_shared<Bucket>(
+        newLocalDepth, bucketCapacity
     );
 
-    oldBucket->localDepth = oldDepth + 1;
+    // Prepare directory expansion without modifying the live table.
+    std::vector<std::shared_ptr<Bucket>> expanded;
 
-    std::size_t shift = static_cast<std::size_t>(
-        globalDepth - (oldDepth + 1)
-    );
-
-    for (std::size_t i = 0; i < directory.size(); ++i) {
-        if (directory[i] == oldBucket &&
-            ((i >> shift) & 1U)) {
-            directory[i] = newBucket;
-        }
+    if (requiresDoubling) {
+        doubleDirectory(expanded);
     }
 
-    std::vector<Record> previous =
-        std::move(oldBucket->records);
+    // Prepare redistributed records before making any changes.
+    std::vector<Record> retained;
+    std::vector<Record> moved;
 
-    oldBucket->records.clear();
+    retained.reserve(original->records.size());
+    moved.reserve(original->records.size());
 
-    for (const Record& record : previous) {
-        std::size_t index = getDirectoryIndex(record.key);
+    for (const Record& record : original->records) {
+        std::uint32_t hash = pseudokey(record.key);
 
-        if (!directory.at(index)->insert(record)) {
+        if ((hash >> (32 - originalDepth)) != originalPrefix) {
             throw std::logic_error(
-                "Failed to redistribute record"
+                "Record not in its expected bucket"
             );
         }
+
+        if (((hash >> (32 - newLocalDepth)) & 1U) == 0) {
+            retained.push_back(record);
+        } else {
+            moved.push_back(record);
+        }
+    }
+
+    // Determine which directory entries belong to each child.
+    const std::size_t remainingBits =
+        static_cast<std::size_t>(
+            newGlobalDepth - newLocalDepth
+        );
+
+    const std::size_t childSpan =
+        std::size_t{1} << remainingBits;
+
+    const std::size_t firstChildStart =
+        (originalPrefix << 1) << remainingBits;
+
+    const std::size_t siblingStart =
+        firstChildStart + childSpan;
+
+    const auto& preparedDirectory =
+        requiresDoubling ? expanded : directory;
+
+    // Verify directory pointers before committing the split.
+    for (std::size_t i = firstChildStart;
+         i < siblingStart + childSpan; ++i) {
+
+        if (preparedDirectory.at(i) != original) {
+            throw std::logic_error(
+                "Inconsistent bucket directory"
+            );
+        }
+    }
+
+    // Commit after all allocations and validation have succeeded.
+    original->records.swap(retained);
+    sibling->records.swap(moved);
+
+    original->localDepth = newLocalDepth;
+
+    auto& destinationDirectory =
+        requiresDoubling ? expanded : directory;
+
+    for (std::size_t i = siblingStart;
+         i < siblingStart + childSpan; ++i) {
+
+        destinationDirectory[i] = sibling;
+    }
+
+    if (requiresDoubling) {
+        directory.swap(expanded);
+        ++globalDepth;
     }
 }
 

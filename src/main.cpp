@@ -2,6 +2,13 @@
 #include "extendible_hash.h"
 #include <initializer_list>
 #include <stdexcept>
+#include <algorithm>
+#include <limits>
+#include <random>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
 
 int main() {
     Bucket bucket(1, 3);  // localDepth = 1, capacity = 3
@@ -247,6 +254,167 @@ int main() {
     std::cout << "Test 27 - Bulk insert and lookup: "
               << (bulkCorrect ? "PASS" : "FAIL")
               << '\n';
+
+    // Test 28: Verify an actual split without directory growth
+    bool correctSplit =
+        growTable.getGlobalDepth() == 3 &&
+        &growTable.getBucket(4) != &growTable.getBucket(5) &&
+        growTable.getBucket(4).getLocalDepth() == 3 &&
+        growTable.getBucket(5).getLocalDepth() == 3 &&
+        &growTable.getBucket(6) == &growTable.getBucket(7) &&
+        growTable.getBucket(6).getLocalDepth() == 2;
+
+    std::cout << "Test 28 - Split without directory doubling: "
+              << (correctSplit ? "PASS" : "FAIL") << '\n';
+
+    // Test 29: Check directory sharing and bucket capacity
+    bool structureOK =
+        bulkTable.getDirectorySize() ==
+        (std::size_t{1} << bulkTable.getGlobalDepth());
+
+    std::unordered_map<const Bucket*, std::size_t> pointerCounts;
+    std::unordered_map<const Bucket*, std::size_t> prefixes;
+
+    for (std::size_t i = 0;
+         i < bulkTable.getDirectorySize() && structureOK; ++i) {
+
+        const Bucket* b = &bulkTable.getBucket(i);
+        const int depth = b->getLocalDepth();
+
+        if (depth < 1 || depth > bulkTable.getGlobalDepth() ||
+            b->getRecordCount() > 4) {
+            structureOK = false;
+            break;
+        }
+
+        const std::size_t prefix =
+            i >> (bulkTable.getGlobalDepth() - depth);
+
+        const auto inserted = prefixes.emplace(b, prefix);
+
+        if (!inserted.second && inserted.first->second != prefix) {
+            structureOK = false;
+        }
+
+        ++pointerCounts[b];
+    }
+
+    for (const auto& entry : pointerCounts) {
+        const Bucket* b = entry.first;
+
+        const std::size_t expectedReferences =
+            std::size_t{1} <<
+            (bulkTable.getGlobalDepth() - b->getLocalDepth());
+
+        if (entry.second != expectedReferences) {
+            structureOK = false;
+        }
+    }
+
+    std::cout << "Test 29 - Directory and bucket invariants: "
+              << (structureOK ? "PASS" : "FAIL") << '\n';
+
+    // Test 30: Randomized insertion order with negative keys
+    std::vector<int> keys;
+
+    for (int key = -1500; key < 1500; ++key) {
+        keys.push_back(key);
+    }
+
+    std::mt19937 rng(4660);
+    std::shuffle(keys.begin(), keys.end(), rng);
+
+    ExtendibleHash randomizedTable(3);
+    bool randomOK = true;
+
+    for (int key : keys) {
+        if (!randomizedTable.insert({key, key * 3})) {
+            randomOK = false;
+        }
+    }
+
+    for (int key : keys) {
+        int actual = 0;
+
+        if (!randomizedTable.find(key, actual) ||
+            actual != key * 3) {
+            randomOK = false;
+        }
+    }
+
+    std::cout << "Test 30 - Randomized insertion and lookup: "
+              << (randomOK ? "PASS" : "FAIL") << '\n';
+
+    // Test 31: Updates must not create duplicates or trigger splits
+    const int previousDepth = randomizedTable.getGlobalDepth();
+    const std::size_t previousSize =
+        randomizedTable.getDirectorySize();
+
+    bool updateOK = true;
+
+    for (int key : keys) {
+        if (!randomizedTable.insert({key, key * 5})) {
+            updateOK = false;
+        }
+    }
+
+    for (int key : keys) {
+        int actual = 0;
+
+        if (!randomizedTable.find(key, actual) ||
+            actual != key * 5) {
+            updateOK = false;
+        }
+    }
+
+    std::unordered_set<const Bucket*> seenBuckets;
+    std::size_t totalRecords = 0;
+
+    for (std::size_t i = 0;
+         i < randomizedTable.getDirectorySize(); ++i) {
+
+        const Bucket* b = &randomizedTable.getBucket(i);
+
+        if (seenBuckets.insert(b).second) {
+            totalRecords += b->getRecordCount();
+        }
+    }
+
+    updateOK = updateOK &&
+               randomizedTable.getGlobalDepth() == previousDepth &&
+               randomizedTable.getDirectorySize() == previousSize &&
+               totalRecords == keys.size();
+
+    std::cout << "Test 31 - Updates preserve structure and count: "
+              << (updateOK ? "PASS" : "FAIL") << '\n';
+
+    // Test 32: Integer boundary keys
+    ExtendibleHash boundaryTable(2);
+
+    const std::vector<int> specialKeys = {
+        std::numeric_limits<int>::min(),
+        std::numeric_limits<int>::max(),
+        -1, 0, 1
+    };
+
+    bool boundaryOK = true;
+
+    for (int key : specialKeys) {
+        if (!boundaryTable.insert({key, key})) {
+            boundaryOK = false;
+        }
+    }
+
+    for (int key : specialKeys) {
+        int actual = 0;
+
+        if (!boundaryTable.find(key, actual) || actual != key) {
+            boundaryOK = false;
+        }
+    }
+
+    std::cout << "Test 32 - Integer boundary keys: "
+              << (boundaryOK ? "PASS" : "FAIL") << '\n';
 
     return 0;
 }
