@@ -49,6 +49,8 @@ public:
 
     std::size_t getDirectoryIndex(int key) const;
 
+    bool find(int key, int& value) const;
+
     int getGlobalDepth() const {
         return globalDepth;
     }

@@ -71,3 +71,10 @@ std::size_t ExtendibleHash::getDirectoryIndex(int key) const {
         hash >> (32 - globalDepth)
     );
 }
+
+
+bool ExtendibleHash::find(int key, int& value) const {
+    std::size_t index = getDirectoryIndex(key);
+
+    return directory.at(index)->find(key, value);
+}

@@ -108,5 +108,33 @@ int main() {
               << (correctPrefix ? "PASS" : "FAIL") << '\n';
 
 
+    // Test 16: Lookup in an empty hash table
+    int lookupValue = -999;
+    bool lookupFound = hashTable.find(25, lookupValue);
+
+    std::cout << "Test 16 - Empty table lookup: "
+              << (!lookupFound ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 17: Failed lookup must not modify output value
+    std::cout << "Test 17 - Preserve value on failure: "
+              << (lookupValue == -999 ? "PASS" : "FAIL")
+              << '\n';
+
+    // Test 18: Lookup several missing keys
+    bool allMissing = true;
+
+    for (int key : {-100, -5, 0, 1, 42, 100000}) {
+        int result = -777;
+
+        if (hashTable.find(key, result) || result != -777) {
+            allMissing = false;
+        }
+    }
+
+    std::cout << "Test 18 - Multiple missing keys: "
+              << (allMissing ? "PASS" : "FAIL")
+              << '\n';
+
     return 0;
 }
