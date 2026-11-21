@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <vector>
+#include <memory>
 
 /// A key-value pair stored in a hash bucket.
 struct Record{
@@ -30,5 +31,31 @@ public:
 
     /// Attempts to store a record; returns true on success or false on failure.
     bool insert(const Record& r);
+    int getLocalDepth() const{
+        return localDepth;
+    }
 
 };
+
+class ExtendibleHash {
+private:
+    int globalDepth;
+    std::size_t bucketCapacity;
+    std::vector<std::shared_ptr<Bucket>> directory;
+
+public:
+    ExtendibleHash(std::size_t bucketCapacity);
+
+    int getGlobalDepth() const {
+        return globalDepth;
+    }
+
+    std::size_t getDirectorySize() const {
+        return directory.size();
+    }
+
+    const Bucket& getBucket(std::size_t index) const {
+        return *directory.at(index);
+    }
+};
+

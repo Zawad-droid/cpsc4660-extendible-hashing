@@ -32,3 +32,16 @@ bool Bucket::insert(const Record& r){
    records.push_back(r);
    return true;
 }
+
+
+ExtendibleHash::ExtendibleHash(std::size_t bucketCapacity)
+    : globalDepth(1), bucketCapacity(bucketCapacity) {
+
+    directory.push_back(
+        std::make_shared<Bucket>(globalDepth, bucketCapacity)
+    );
+
+    directory.push_back(
+        std::make_shared<Bucket>(globalDepth, bucketCapacity)
+    );
+}

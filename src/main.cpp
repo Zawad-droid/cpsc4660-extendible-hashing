@@ -54,5 +54,28 @@ int main() {
     std::cout << "Test 8 - Existing records preserved: "
               << (found10 && found30 ? "PASS" : "FAIL") << '\n';
 
+    
+    ExtendibleHash hashTable(3);
+
+    std::cout << "Test 9 - Global depth: "
+              << (hashTable.getGlobalDepth() == 1 ? "PASS" : "FAIL")
+              << '\n';
+
+    std::cout << "Test 10 - Directory size: "
+              << (hashTable.getDirectorySize() == 2 ? "PASS" : "FAIL")
+              << '\n';
+
+    std::cout << "Test 11 - Separate buckets: "
+              << (&hashTable.getBucket(0) != &hashTable.getBucket(1)
+                      ? "PASS" : "FAIL")
+              << '\n';
+
+    std::cout << "Test 12 - Local depths: "
+              << (hashTable.getBucket(0).getLocalDepth() == 1 &&
+                  hashTable.getBucket(1).getLocalDepth() == 1
+                      ? "PASS" : "FAIL")
+              << '\n';
+
+
     return 0;
 }
