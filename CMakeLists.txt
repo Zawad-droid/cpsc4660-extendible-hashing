@@ -50,3 +50,19 @@ add_test(
     NAME extendible_hash_integration
     COMMAND extendible_hash_integration_tests
 )
+# Performance evaluation
+add_executable(extendible_hash_benchmark
+    src/benchmark.cpp
+    src/extendible_hash.cpp
+)
+
+target_include_directories(
+    extendible_hash_benchmark PRIVATE include
+)
+
+target_compile_options(
+    extendible_hash_benchmark PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)

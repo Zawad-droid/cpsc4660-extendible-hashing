@@ -49,6 +49,8 @@ private:
     int globalDepth;
     std::size_t bucketCapacity;
     std::vector<std::shared_ptr<Bucket>> directory;
+    std::size_t splitCount = 0;
+    std::size_t doublingCount = 0;
     static std::uint32_t pseudokey(int key);
     void doubleDirectory(
         std::vector<std::shared_ptr<Bucket>>& expanded
@@ -75,6 +77,13 @@ public:
 
     const Bucket& getBucket(std::size_t index) const {
         return *directory.at(index);
+    }
+    std::size_t getSplitCount() const {
+        return splitCount;
+    }
+
+    std::size_t getDoublingCount() const {
+        return doublingCount;
     }
 };
 

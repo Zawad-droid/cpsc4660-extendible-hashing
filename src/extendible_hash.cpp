@@ -211,7 +211,9 @@ void ExtendibleHash::splitBucket(std::size_t directoryIndex) {
     if (requiresDoubling) {
         directory.swap(expanded);
         ++globalDepth;
+        ++doublingCount;
     }
+    ++splitCount;
 }
 
 
