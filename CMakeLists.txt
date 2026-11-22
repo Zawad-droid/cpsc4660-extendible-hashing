@@ -66,3 +66,13 @@ target_compile_options(
     -Wextra
     -Wpedantic
 )
+
+# Small terminal demonstration of directory growth
+add_executable(extendible_hash_demo
+    src/demo.cpp
+    src/extendible_hash.cpp
+)
+
+target_include_directories(
+    extendible_hash_demo PRIVATE include
+)
