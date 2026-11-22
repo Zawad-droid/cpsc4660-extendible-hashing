@@ -32,6 +32,10 @@ Run the main program:
 ```bash
 ./build/extendible_hash
 ```
+Run the directory splitting demonstration:
+
+```bash
+./build/extendible_hash_demo
 
 Run the integration tests:
 
